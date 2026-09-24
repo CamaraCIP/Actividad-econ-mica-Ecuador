@@ -636,9 +636,14 @@ with tab_general:
                 x=contrib_filtrada["trimestre"],
                 y=contrib_filtrada[columna],
                 name=nombre,
-                marker_color=color
-            )
+              marker_color=color,
+        hovertemplate=(
+            "<b>%{x}</b><br>"
+            f"{nombre}: %{{y:.2f}} p.p."
+            "<extra></extra>"
         )
+    )
+)
 
     fig_contrib.add_trace(
         go.Scatter(
@@ -733,9 +738,14 @@ with tab_componentes:
             marker=dict(
                 color=DT_AZUL,
                 size=6
-            )
+            ),
+        hovertemplate=(
+            "<b>%{x}</b><br>"
+            "Interanual: %{y:.2f}%"
+            "<extra></extra>"
         )
     )
+)
 
     fig_comp.add_trace(
         go.Scatter(
@@ -752,9 +762,14 @@ with tab_componentes:
             marker=dict(
                 color=DT_NARANJA,
                 size=5
-            )
+           ),
+        hovertemplate=(
+            "<b>%{x}</b><br>"
+            "Intertrimestral: %{y:.2f}%"
+            "<extra></extra>"
         )
     )
+)
 
     fig_comp.add_hline(
         y=0,
@@ -886,9 +901,14 @@ with tab_componentes:
                     ),
                     marker=dict(
                         size=4
-                    )
-                )
-            )
+                    ),
+        hovertemplate=(
+            "<b>%{x}</b><br>"
+            "Interanual: %{y:.2f}%"
+            "<extra></extra>"
+        )
+    )
+)
 
             fig.add_hline(
                 y=0,
