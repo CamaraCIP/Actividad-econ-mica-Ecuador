@@ -914,239 +914,651 @@ with tab_industrias:
         "### Actividad económica por industria"
     )
 
-    tipo_variacion = st.radio(
-        "Indicador",
-        [
-            "Variación interanual",
-            "Variación intertrimestral"
-        ],
-        horizontal=True
-    )
+    # --------------------------------------------------------
+    # CONTROLES
+    # --------------------------------------------------------
 
-    if (
-        tipo_variacion
-        == "Variación interanual"
-    ):
+    col_ind_1, col_ind_2 = st.columns([1, 1])
 
-        variable_industria = (
-            "var_interanual_pct"
+    with col_ind_1:
+
+        tipo_variacion = st.radio(
+            "Indicador",
+            [
+                "Variación interanual",
+                "Variación intertrimestral"
+            ],
+            horizontal=True
         )
+
+    with col_ind_2:
+
+        grupo_seleccionado = st.selectbox(
+            "Grupo de actividad",
+            [
+                "Todas",
+                "Resto de industrias",
+                "Público",
+                "Petrolero"
+            ]
+        )
+
+
+    # Variable que se utilizará según el indicador seleccionado
+    if tipo_variacion == "Variación interanual":
+
+        variable_industria = "var_interanual_pct"
 
     else:
 
-        variable_industria = (
-            "var_intertrimestral_pct"
-        )
+        variable_industria = "var_intertrimestral_pct"
 
 
-    industrias_sin_total = industrias[
-        industrias["industria"]
-        != "VAB TOTAL"
+    # --------------------------------------------------------
+    # PREPARACIÓN DE LA BASE
+    # --------------------------------------------------------
+
+    industrias_base = industrias.copy()
+
+    # Homologar nombres para presentación
+    industrias_base["grupo_dashboard"] = (
+        industrias_base["grupo"]
+        .replace({
+            "Petro": "Petrolero",
+            "Total": "Total"
+        })
+    )
+
+    # Excluir VAB TOTAL del ranking de actividades
+    industrias_sin_total = industrias_base[
+        industrias_base["industria"] != "VAB TOTAL"
     ].copy()
 
-    industrias_filtradas = (
-        industrias_sin_total[
-            industrias_sin_total["anio"]
-            >= anio_inicial
-        ]
-        .copy()
-    )
+    # Aplicar filtro de año
+    industrias_filtradas = industrias_sin_total[
+        industrias_sin_total["anio"] >= anio_inicial
+    ].copy()
 
-    if len(industrias_filtradas) == 0:
-        industrias_filtradas = (
-            industrias_sin_total.copy()
-        )
+    # Aplicar filtro de grupo
+    if grupo_seleccionado != "Todas":
 
-    ultimo_periodo_orden = (
-        industrias_sin_total["orden"].max()
-    )
+        industrias_filtradas = industrias_filtradas[
+            industrias_filtradas["grupo_dashboard"]
+            == grupo_seleccionado
+        ].copy()
 
-    ultimo_periodo = (
-        industrias_sin_total[
-            industrias_sin_total["orden"]
+
+    # ========================================================
+    # RANKING DEL ÚLTIMO TRIMESTRE
+    # ========================================================
+
+    if len(industrias_filtradas) > 0:
+
+        ultimo_periodo_orden = industrias_filtradas[
+            "orden"
+        ].max()
+
+        ultimo_periodo = industrias_filtradas[
+            industrias_filtradas["orden"]
             == ultimo_periodo_orden
-        ]
-        .copy()
-    )
+        ].copy()
 
-
-    # --------------------------------------------------------
-    # RANKING ÚLTIMO TRIMESTRE
-    # --------------------------------------------------------
-
-    periodo_nombre = (
-        ultimo_periodo[
+        periodo_nombre = ultimo_periodo[
             "trimestre"
         ].iloc[0]
-    )
 
-    st.markdown(
-        f"### Ranking de industrias · {periodo_nombre}"
-    )
-
-    ranking = (
-        ultimo_periodo
-        .dropna(
-            subset=[
-                variable_industria
-            ]
+        st.markdown(
+            f"### Ranking de industrias · {periodo_nombre}"
         )
-        .sort_values(
-            variable_industria,
-            ascending=True
-        )
-    )
 
-    colores_ranking = [
-        DT_AZUL
-        if valor >= 0
-        else DT_ROJO
-        for valor in ranking[
-            variable_industria
-        ]
-    ]
-
-    fig_rank = go.Figure()
-
-    fig_rank.add_trace(
-        go.Bar(
-            x=ranking[
-                variable_industria
-            ],
-            y=ranking["industria"],
-            orientation="h",
-            marker_color=colores_ranking,
-            text=[
-                formato_porcentaje(x)
-                for x in ranking[
-                    variable_industria
-                ]
-            ],
-            textposition="outside",
-            hovertemplate=(
-                "<b>%{y}</b><br>"
-                "Variación: %{x:.1f}%"
-                "<extra></extra>"
+        ranking = (
+            ultimo_periodo
+            .dropna(
+                subset=[variable_industria]
+            )
+            .sort_values(
+                variable_industria,
+                ascending=True
             )
         )
-    )
 
-    fig_rank.add_vline(
-        x=0,
-        line_width=1,
-        line_color="#AEB8C4"
-    )
+        colores_ranking = [
+            DT_AZUL
+            if valor >= 0
+            else DT_ROJO
+            for valor in ranking[
+                variable_industria
+            ]
+        ]
 
-    fig_rank.update_xaxes(
-        title="Variación (%)",
-        ticksuffix="%"
-    )
+        fig_rank = go.Figure()
 
-    fig_rank.update_layout(
-        showlegend=False
-    )
+        fig_rank.add_trace(
+            go.Bar(
+                x=ranking[
+                    variable_industria
+                ],
+                y=ranking[
+                    "industria"
+                ],
+                orientation="h",
+                marker_color=colores_ranking,
 
-    fig_rank = estilo_grafico(
-        fig_rank,
-        altura=720
-    )
+                text=[
+                    formato_porcentaje(x)
+                    for x in ranking[
+                        variable_industria
+                    ]
+                ],
 
-    st.plotly_chart(
-        fig_rank,
-        use_container_width=True
-    )
+                textposition="outside",
+
+                hovertemplate=(
+                    "<b>%{y}</b><br>"
+                    "Variación: %{x:.1f}%"
+                    "<extra></extra>"
+                )
+            )
+        )
+
+        fig_rank.add_vline(
+            x=0,
+            line_width=1,
+            line_color="#AEB8C4"
+        )
+
+        fig_rank.update_xaxes(
+            title="Variación (%)",
+            ticksuffix="%"
+        )
+
+        fig_rank.update_layout(
+            showlegend=False
+        )
+
+        fig_rank = estilo_grafico(
+            fig_rank,
+            altura=700
+        )
+
+        st.plotly_chart(
+            fig_rank,
+            use_container_width=True
+        )
 
 
-    # --------------------------------------------------------
-    # HEATMAP
-    # --------------------------------------------------------
+    # ========================================================
+    # EVOLUCIÓN POR INDUSTRIA
+    # HEATMAPS SEPARADOS POR BLOQUE
+    # ========================================================
 
     st.markdown(
         "### Evolución por industria"
     )
 
-    heatmap_data = (
-        industrias_filtradas
-        .pivot_table(
-            index="industria",
-            columns="trimestre",
-            values=variable_industria,
-            aggfunc="first"
-        )
+    st.caption(
+        "Las actividades se ordenan de mayor a menor "
+        "según su variación en el último trimestre disponible."
     )
+
+
+    # --------------------------------------------------------
+    # ORDEN CRONOLÓGICO DE LOS TRIMESTRES
+    # --------------------------------------------------------
 
     orden_periodos = (
-        industrias_filtradas[
-            [
-                "trimestre",
-                "orden"
-            ]
+        industrias_base[
+            ["trimestre", "orden"]
         ]
         .drop_duplicates()
-        .sort_values("orden")[
-            "trimestre"
-        ]
-        .tolist()
+        .sort_values("orden")
     )
 
-    columnas_heatmap = [
-        periodo
-        for periodo in orden_periodos
-        if periodo
-        in heatmap_data.columns
-    ]
+    lista_periodos = orden_periodos[
+        "trimestre"
+    ].tolist()
 
-    heatmap_data = (
-        heatmap_data[
-            columnas_heatmap
-        ]
-    )
 
-    fig_heat = go.Figure(
-        data=go.Heatmap(
-            z=heatmap_data.values,
-            x=heatmap_data.columns,
-            y=heatmap_data.index,
-            zmid=0,
-            colorscale=[
-                [0.00, DT_ROJO],
-                [0.25, DT_NARANJA_ROJO],
-                [0.45, DT_AMARILLO],
-                [0.50, DT_BLANCO],
-                [0.70, DT_TURQUESA_CLARO],
-                [1.00, DT_AZUL]
-            ],
-            colorbar=dict(
-                title="%"
-            ),
-            hovertemplate=(
-                "<b>%{y}</b><br>"
-                "%{x}<br>"
-                "%{z:.1f}%"
-                "<extra></extra>"
+    # ========================================================
+    # FUNCIÓN PARA CREAR CADA HEATMAP
+    # ========================================================
+
+    def mostrar_heatmap_grupo(
+        titulo,
+        grupo,
+        color_titulo
+    ):
+
+        # Filtrar grupo y período
+        df_grupo = industrias_base[
+            (
+                industrias_base[
+                    "grupo_dashboard"
+                ] == grupo
+            ) &
+            (
+                industrias_base[
+                    "anio"
+                ] >= anio_inicial
+            )
+        ].copy()
+
+        if len(df_grupo) == 0:
+            return
+
+
+        # ----------------------------------------------------
+        # ENCABEZADO DEL BLOQUE
+        # ----------------------------------------------------
+
+        st.markdown(
+            f"""
+            <div style="
+                background-color:{color_titulo};
+                color:white;
+                padding:8px 14px;
+                font-weight:700;
+                border-radius:7px;
+                margin-top:18px;
+                margin-bottom:10px;
+                text-align:center;
+            ">
+                {titulo}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+
+        # ----------------------------------------------------
+        # CREAR MATRIZ DEL HEATMAP
+        # ----------------------------------------------------
+
+        heatmap_data = (
+            df_grupo
+            .pivot_table(
+                index="industria",
+                columns="trimestre",
+                values=variable_industria,
+                aggfunc="first"
             )
         )
-    )
 
-    fig_heat.update_layout(
-        height=720,
-        margin=dict(
-            l=30,
-            r=30,
-            t=20,
-            b=30
-        ),
-        font=dict(
-            family="Arial",
-            color=DT_TEXTO
-        ),
-        paper_bgcolor=DT_BLANCO
-    )
 
-    st.plotly_chart(
-        fig_heat,
-        use_container_width=True
-    )
+        # ----------------------------------------------------
+        # ORDENAR COLUMNAS CRONOLÓGICAMENTE
+        # ----------------------------------------------------
+
+        columnas_heatmap = [
+            periodo
+            for periodo in lista_periodos
+            if periodo in heatmap_data.columns
+        ]
+
+        heatmap_data = heatmap_data[
+            columnas_heatmap
+        ]
+
+
+        # ----------------------------------------------------
+        # IDENTIFICAR ÚLTIMO TRIMESTRE DISPONIBLE
+        # ----------------------------------------------------
+
+        ultimo_trimestre_heatmap = (
+            columnas_heatmap[-1]
+        )
+
+
+        # ----------------------------------------------------
+        # ORDENAR INDUSTRIAS DE MAYOR A MENOR
+        # SEGÚN EL ÚLTIMO TRIMESTRE
+        # ----------------------------------------------------
+
+        heatmap_data = (
+            heatmap_data
+            .sort_values(
+                by=ultimo_trimestre_heatmap,
+                ascending=False,
+                na_position="last"
+            )
+        )
+
+
+        # ----------------------------------------------------
+        # CREAR TEXTO PARA MOSTRAR EN LAS CELDAS
+        # ----------------------------------------------------
+
+        texto_heatmap = heatmap_data.copy()
+
+        for columna in texto_heatmap.columns:
+
+            texto_heatmap[columna] = (
+                texto_heatmap[columna]
+                .apply(
+                    lambda x:
+                    ""
+                    if pd.isna(x)
+                    else f"{x:.1f}%"
+                )
+            )
+
+
+        # ----------------------------------------------------
+        # CREAR HEATMAP
+        # ----------------------------------------------------
+
+        fig_heat = go.Figure(
+            data=go.Heatmap(
+
+                z=heatmap_data.values,
+
+                x=heatmap_data.columns,
+
+                y=heatmap_data.index,
+
+                text=texto_heatmap.values,
+
+                texttemplate="%{text}",
+
+                textfont=dict(
+                    size=11
+                ),
+
+                zmid=0,
+
+                colorscale=[
+                    [0.00, DT_ROJO],
+                    [0.20, DT_NARANJA_ROJO],
+                    [0.40, DT_AMARILLO],
+                    [0.50, DT_BLANCO],
+                    [0.70, DT_TURQUESA_CLARO],
+                    [1.00, DT_AZUL]
+                ],
+
+                colorbar=dict(
+                    title="%"
+                ),
+
+                hovertemplate=(
+                    "<b>%{y}</b><br>"
+                    "Trimestre: %{x}<br>"
+                    "Variación: %{z:.1f}%"
+                    "<extra></extra>"
+                )
+            )
+        )
+
+
+        # ----------------------------------------------------
+        # ALTURA DINÁMICA
+        # ----------------------------------------------------
+
+        numero_industrias = len(
+            heatmap_data.index
+        )
+
+        altura_heatmap = max(
+            250,
+            numero_industrias * 42 + 130
+        )
+
+
+        # ----------------------------------------------------
+        # FORMATO
+        # ----------------------------------------------------
+
+        fig_heat.update_layout(
+
+            height=altura_heatmap,
+
+            margin=dict(
+                l=25,
+                r=25,
+                t=55,
+                b=30
+            ),
+
+            title=dict(
+                text=(
+                    f"Ordenado según "
+                    f"{ultimo_trimestre_heatmap}"
+                ),
+                font=dict(
+                    size=14,
+                    color=DT_AZUL_OSCURO
+                ),
+                x=0
+            ),
+
+            font=dict(
+                family="Arial",
+                size=12,
+                color=DT_TEXTO
+            ),
+
+            paper_bgcolor=DT_BLANCO,
+
+            plot_bgcolor=DT_BLANCO
+        )
+
+
+        fig_heat.update_xaxes(
+            title="",
+            side="bottom",
+            showgrid=False
+        )
+
+
+        fig_heat.update_yaxes(
+            title="",
+
+            # Importante:
+            # la industria de mayor crecimiento
+            # debe aparecer arriba
+            autorange="reversed"
+        )
+
+
+        st.plotly_chart(
+            fig_heat,
+            use_container_width=True
+        )
+
+
+    # ========================================================
+    # MOSTRAR LOS TRES BLOQUES
+    # ========================================================
+
+    if grupo_seleccionado in [
+        "Todas",
+        "Resto de industrias"
+    ]:
+
+        mostrar_heatmap_grupo(
+            titulo="Resto de industrias",
+            grupo="Resto de industrias",
+            color_titulo=DT_AZUL_6
+        )
+
+
+    if grupo_seleccionado in [
+        "Todas",
+        "Público"
+    ]:
+
+        mostrar_heatmap_grupo(
+            titulo="Público",
+            grupo="Público",
+            color_titulo=DT_AZUL_MEDIO
+        )
+
+
+    if grupo_seleccionado in [
+        "Todas",
+        "Petrolero"
+    ]:
+
+        mostrar_heatmap_grupo(
+            titulo="Petrolero",
+            grupo="Petrolero",
+            color_titulo=DT_NARANJA_OSCURO
+        )
+
+
+    # ========================================================
+    # VAB TOTAL
+    # ========================================================
+
+    vab_total_df = industrias_base[
+        (
+            industrias_base[
+                "industria"
+            ] == "VAB TOTAL"
+        ) &
+        (
+            industrias_base[
+                "anio"
+            ] >= anio_inicial
+        )
+    ].copy()
+
+
+    if len(vab_total_df) > 0:
+
+        st.markdown(
+            f"""
+            <div style="
+                background-color:{DT_AZUL_OSCURO};
+                color:white;
+                padding:8px 14px;
+                font-weight:700;
+                border-radius:7px;
+                margin-top:20px;
+                margin-bottom:10px;
+                text-align:center;
+            ">
+                VAB TOTAL
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+
+        tabla_vab = (
+            vab_total_df
+            .pivot_table(
+                index="industria",
+                columns="trimestre",
+                values=variable_industria,
+                aggfunc="first"
+            )
+        )
+
+
+        columnas_vab = [
+            periodo
+            for periodo in lista_periodos
+            if periodo in tabla_vab.columns
+        ]
+
+
+        tabla_vab = tabla_vab[
+            columnas_vab
+        ]
+
+
+        # Crear texto para el heatmap
+        texto_vab = tabla_vab.copy()
+
+        for columna in texto_vab.columns:
+
+            texto_vab[columna] = (
+                texto_vab[columna]
+                .apply(
+                    lambda x:
+                    ""
+                    if pd.isna(x)
+                    else f"{x:.1f}%"
+                )
+            )
+
+
+        fig_vab = go.Figure(
+            data=go.Heatmap(
+
+                z=tabla_vab.values,
+
+                x=tabla_vab.columns,
+
+                y=tabla_vab.index,
+
+                text=texto_vab.values,
+
+                texttemplate="%{text}",
+
+                textfont=dict(
+                    size=11
+                ),
+
+                zmid=0,
+
+                colorscale=[
+                    [0.00, DT_ROJO],
+                    [0.20, DT_NARANJA_ROJO],
+                    [0.40, DT_AMARILLO],
+                    [0.50, DT_BLANCO],
+                    [0.70, DT_TURQUESA_CLARO],
+                    [1.00, DT_AZUL]
+                ],
+
+                showscale=False,
+
+                hovertemplate=(
+                    "<b>VAB TOTAL</b><br>"
+                    "Trimestre: %{x}<br>"
+                    "Variación: %{z:.1f}%"
+                    "<extra></extra>"
+                )
+            )
+        )
+
+
+        fig_vab.update_layout(
+
+            height=180,
+
+            margin=dict(
+                l=25,
+                r=25,
+                t=15,
+                b=30
+            ),
+
+            font=dict(
+                family="Arial",
+                size=12,
+                color=DT_TEXTO
+            ),
+
+            paper_bgcolor=DT_BLANCO
+        )
+
+
+        fig_vab.update_xaxes(
+            title="",
+            showgrid=False
+        )
+
+
+        fig_vab.update_yaxes(
+            title=""
+        )
+
+
+        st.plotly_chart(
+            fig_vab,
+            use_container_width=True
+        )
 
 
 # ============================================================
