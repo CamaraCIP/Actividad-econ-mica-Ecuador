@@ -504,12 +504,17 @@ with tab_general:
                 color=DT_AZUL,
                 width=3
             ),
-            marker=dict(
-                size=6,
-                color=DT_AZUL
-            )
+          marker=dict(
+            size=6,
+            color=DT_AZUL
+        ),
+        hovertemplate=(
+            "<b>%{x}</b><br>"
+            "Interanual: %{y:.2f}%"
+            "<extra></extra>"
         )
     )
+)
 
     fig_pib.add_trace(
         go.Scatter(
@@ -524,9 +529,14 @@ with tab_general:
             marker=dict(
                 size=5,
                 color=DT_NARANJA
-            )
+            ),
+        hovertemplate=(
+            "<b>%{x}</b><br>"
+            "Intertrimestral: %{y:.2f}%"
+            "<extra></extra>"
         )
     )
+)
 
     fig_pib.add_hline(
         y=0,
